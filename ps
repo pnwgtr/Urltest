@@ -1,0 +1,141 @@
+# Define list of URLs (http or https)
+$urls = @(
+    "http://www.playboy.com",
+    "http://www.pornhub.com",
+    "http://www.xvideos.com",
+    "http://www.redtube.com",
+    "http://www.youporn.com",
+    "http://www.bet365.com",
+    "http://www.pokerstars.com",
+    "http://www.draftkings.com",
+    "http://www.fanduel.com",
+    "http://www.williamhill.com",
+    "http://malware.testing.google.test",
+    "http://www.amtso.org",
+    "http://www.eicar.org",
+    "http://www.facebook.com",
+    "http://www.instagram.com",
+    "http://www.tiktok.com",
+    "http://www.twitter.com",
+    "http://www.snapchat.com",
+    "http://www.netflix.com",
+    "http://www.hulu.com",
+    "http://www.disneyplus.com",
+    "http://www.youtube.com",
+    "http://www.twitch.tv",
+    "http://www.hidemyass.com",
+    "http://www.kproxy.com",
+    "http://www.proxysite.com",
+    "http://www.torproject.org",
+    "http://www.ultrasurf.us",
+    "http://www.gunsamerica.com",
+    "http://www.cheaperthandirt.com",
+    "http://www.budsgunshop.com",
+    "http://www.impactguns.com",
+    "http://www.midwayusa.com",
+    "http://www.stormfront.org",
+    "http://www.4chan.org",
+    "http://www.8kun.top",
+    "http://www.dailystormer.su",
+    "http://www.vanguardnewsnetwork.com",
+    "http://www.indeed.com",
+    "http://www.monster.com",
+    "http://www.linkedin.com",
+    "http://www.glassdoor.com",
+    "http://www.careerbuilder.com"
+)
+
+# Initialize results array
+$results = @()
+
+# Loop through each URL
+foreach ($url in $urls) {
+    Write-Host "`nTesting $url..."
+
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    try {
+        $response = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 10
+        $statusCode = $response.StatusCode
+        Write-Host "$url ACCESSIBLE (Status Code: $statusCode)" -ForegroundColor Green
+
+        $results += [PSCustomObject]@{
+            Timestamp   = $timestamp
+            URL         = $url
+            Status      = "Accessible"
+            StatusCode  = $statusCode
+            Error       = ""
+        }
+    }
+    catch {
+        $errorMsg = $_.Exception.Message
+        Write-Host "$url BLOCKED or FAILED ($errorMsg)" -ForegroundColor Red
+
+        $results += [PSCustomObject]@{
+            Timestamp   = $timestamp
+            URL         = $url
+            Status      = "Blocked/Failed"
+            StatusCode  = ""
+            Error       = $errorMsg
+        }
+    }
+}
+
+# Export results to CSV
+$csvPath = "SiteContentTestResults.csv"
+$results | Export-Csv -Path $csvPath -NoTypeInformation -Force
+
+# Generate HTML report
+$htmlPath = "SiteContentTestReport.html"
+$reportTitle = "Site Content Test Report - $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+
+$htmlHeader = @"
+<html>
+<head>
+    <title>$reportTitle</title>
+    <style>
+        body { font-family: Arial; margin: 20px; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ddd; padding: 8px; }
+        th { background-color: #333; color: white; }
+        tr:nth-child(even) { background-color: #f2f2f2; }
+        .accessible { color: green; font-weight: bold; }
+        .blocked { color: red; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h2>$reportTitle</h2>
+    <table>
+        <tr>
+            <th>Timestamp</th>
+            <th>URL</th>
+            <th>Status</th>
+            <th>Status Code</th>
+            <th>Error</th>
+        </tr>
+"@
+
+$htmlRows = ""
+foreach ($entry in $results) {
+    $statusClass = if ($entry.Status -eq "Accessible") { "accessible" } else { "blocked" }
+    $htmlRows += "<tr>
+        <td>$($entry.Timestamp)</td>
+        <td>$($entry.URL)</td>
+        <td class='$statusClass'>$($entry.Status)</td>
+        <td>$($entry.StatusCode)</td>
+        <td>$($entry.Error)</td>
+    </tr>"
+}
+
+$htmlFooter = @"
+    </table>
+</body>
+</html>
+"@
+
+# Write HTML report
+$htmlContent = $htmlHeader + $htmlRows + $htmlFooter
+$htmlContent | Out-File -FilePath $htmlPath -Encoding utf8
+
+Write-Host "`nAll tests completed."
+Write-Host "CSV results saved to $csvPath"
+Write-Host "HTML report saved to $htmlPath" -ForegroundColor Cyan
